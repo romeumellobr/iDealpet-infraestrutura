@@ -1,0 +1,12 @@
+cloud_run_service_name="api-blockchain"
+limit_cpu = "1"
+limit_memory = "512Mi"
+tag_image = "latest"
+loading_balancer = "idealpet"
+ssl_certificate_name = "idealpet-certificate-ssl-v2"
+domain="idealpet"
+sub_domain_service="blockchain"
+min_instances=1
+max_instances=2
+security_policy="idealpet"
+secret_manager_variables="BLOCKAIN_ENVIRONMENTS"

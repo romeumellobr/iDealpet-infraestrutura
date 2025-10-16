@@ -1,0 +1,8 @@
+cloud_run_service_name="api-backend-v2"
+limit_cpu = "1"
+limit_memory = "512Mi"
+tag_image = "latest"
+loading_balancer = "idealpet"
+ssl_certificate_name = "idealpet-certificate-ssl-v7"
+domain="idealpet"
+sub_domain_service="api"

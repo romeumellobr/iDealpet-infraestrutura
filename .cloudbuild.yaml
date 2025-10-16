@@ -1,0 +1,137 @@
+steps:
+  # Terraform Version Check
+  - name: 'hashicorp/terraform:latest'
+    id: "terraform-version"
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        terraform -version
+
+  # Terraform Init
+  - name: 'hashicorp/terraform:latest'
+    id: "terraform-init"
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        cd applications/cloud_run/$_SERVICE_NAME
+        echo "Verificando estrutura do diretório..."
+        pwd
+        ls -la
+        echo "Verificando arquivo de backend..."
+        ls -la .environments/$_ENVIRONMENT/backend.hcl || echo "Arquivo backend.hcl não encontrado"
+        echo "Executando terraform init..."
+        terraform init -backend-config=".environments/$_ENVIRONMENT/backend.hcl"
+
+  # Terraform Validate
+  - name: 'hashicorp/terraform:latest'
+    id: "terraform-validate"
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        cd applications/cloud_run/$_SERVICE_NAME
+        echo "Verificando se o diretório .terraform existe..."
+        ls -la .terraform/ || echo "Diretório .terraform não encontrado"
+        echo "Executando terraform validate..."
+        terraform validate
+    waitFor: ['terraform-init']
+
+  # Terraform Plan
+  - name: 'hashicorp/terraform:latest'
+    id: "terraform-plan"
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        echo "########## PROCESSANDO ARQUIVOS DE VARIAVEIS #########"
+        varfileBase=".environments/$_ENVIRONMENT"
+        varfiles=""
+
+        for file in $_VARFILES; do
+          if [ -n "$file" ]; then
+            varfiles="$varfiles -var-file=$varfileBase/$file"
+          fi
+        done
+        varfiles=$(echo "$varfiles" | tr ',' ' ')
+        echo "Arquivos de variáveis usados: $varfiles"
+        
+        cd applications/cloud_run/$_SERVICE_NAME
+        ls -la
+        echo "Executando terraform plan..."
+        terraform plan -input=false $varfiles -out=tfplan
+    waitFor: ['terraform-validate']
+
+  # Terraform Apply
+  - name: 'hashicorp/terraform:latest'
+    id: "terraform-apply"
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+          cd applications/cloud_run/$_SERVICE_NAME
+          echo "Verificando se o plano existe..."
+          ls -la tfplan || echo "Arquivo tfplan não encontrado"
+          echo "Executando terraform apply..."
+          terraform apply -auto-approve tfplan
+
+          echo "Gerando outputs do Terraform..."
+          terraform output -json > terraform_outputs.json
+    waitFor: ['terraform-plan']
+
+  # Debug Check JSON
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: "debug-check-json"
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        cd applications/cloud_run/$_SERVICE_NAME
+        echo "Verificando se o arquivo terraform_outputs.json existe..."
+        ls -la terraform_outputs.json || echo "Arquivo terraform_outputs.json não encontrado"
+        echo "Conteúdo do terraform_outputs.json:"
+        cat terraform_outputs.json || echo "Erro ao ler o arquivo"
+    waitFor: ['terraform-apply']
+
+  # Update Load Balancer
+  - name: 'hashicorp/terraform:latest'
+    id: "update-load-balancer"
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+          cd applications/cloud_run/$_SERVICE_NAME
+          echo "Executando update do load balancer..."
+          
+          # Instalar gcloud no container terraform
+          apk add --no-cache curl python3 py3-pip
+          curl https://sdk.cloud.google.com | bash
+          export PATH="$$PATH:/root/google-cloud-sdk/bin"
+          
+          # Capturar outputs do Terraform e exportar como variáveis de ambiente
+          echo "Capturando outputs do Terraform..."
+          export BACKEND_SERVICE_ID=$$(terraform output -raw backend_service_id)
+          export HOST=$$(terraform output -raw host)
+          export PATH_MATCHER_NAME=$$(terraform output -raw path_matcher_name)
+          export GCP_PROJECT_ENVIRONMENT=$$(terraform output -raw gcp_project_environment)
+          
+          echo "Variáveis de ambiente definidas:"
+          echo "BACKEND_SERVICE_ID=$$BACKEND_SERVICE_ID"
+          echo "HOST=$$HOST"
+          echo "PATH_MATCHER_NAME=$$PATH_MATCHER_NAME"
+          echo "GCP_PROJECT_ENVIRONMENT=$$GCP_PROJECT_ENVIRONMENT"
+          
+          chmod +x update_load_balancer.sh
+          ./update_load_balancer.sh
+    waitFor: ['debug-check-json']
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+substitutions:
+  _SERVICE_NAME: "api-backend-v2"
+  _ENVIRONMENT: "production"
+  _VARFILES: 'variables.auto.tfvars, environment.auto.tfvars'
+
+timeout: 3600s

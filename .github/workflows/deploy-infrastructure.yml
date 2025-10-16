@@ -1,0 +1,68 @@
+name: Deploy Infrastructure
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'applications/cloud_run/**'
+      - 'core/**'
+      - '.cloudbuild.yaml'
+  workflow_dispatch:
+    inputs:
+      service_name:
+        description: 'Nome do serviço'
+        required: true
+        default: 'api-backend-v2'
+        type: choice
+        options:
+          - api-backend-v2
+          - api-biometria-v1
+      environment:
+        description: 'Ambiente'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - development
+          - production
+
+env: 
+  _SERVICE_NAME: ${{ github.event.inputs.service_name || 'api-backend-v2' }}
+
+jobs:
+  deploy-infrastructure:
+    name: Deploy Infrastructure
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Autenticação no Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      - name: Configurar Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: ${{ secrets.PROJECT_ID }}
+
+      - name: Definir Variáveis de Ambiente
+        run: |
+          if [[ "${{ github.event.inputs.environment }}" != "" ]]; then
+            echo "ENVIRONMENT=${{ github.event.inputs.environment }}" >> $GITHUB_ENV
+          elif [[ "${{ github.ref_name }}" == "main" ]]; then
+            echo "ENVIRONMENT=production" >> $GITHUB_ENV
+          else
+            echo "ENVIRONMENT=development" >> $GITHUB_ENV
+          fi
+
+      - name: Deploy da Infraestrutura via Cloud Build
+        run: |
+          echo "Executando deploy da infraestrutura para SERVICE_NAME: $_SERVICE_NAME"
+          echo "Ambiente: $ENVIRONMENT"
+          gcloud builds submit \
+            --config=.cloudbuild.yaml \
+            --substitutions=_SERVICE_NAME="$_SERVICE_NAME",_ENVIRONMENT="$ENVIRONMENT"

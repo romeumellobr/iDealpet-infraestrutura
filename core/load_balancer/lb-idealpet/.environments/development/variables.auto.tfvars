@@ -1,0 +1,8 @@
+gcp_project_alias = "dev"
+gcp_project_environment = "development"
+gcp_project_id = "pet-hero-423816"
+gcp_project_number = "721852722464"
+gcp_project_name = "PET HERO"
+gcp_project_region = "us-central1"
+gcp_project_vpc = "lb-network"
+gcp_project_connectors = "connector-lb-network"

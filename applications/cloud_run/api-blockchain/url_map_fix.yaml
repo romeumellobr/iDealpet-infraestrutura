@@ -1,0 +1,36 @@
+creationTimestamp: '2025-03-12T19:11:48.215-07:00'
+defaultService: https://www.googleapis.com/compute/v1/projects/pet-hero-423816/global/backendServices/default-backend-service-production
+fingerprint: 1_yOq2M4ttg=
+hostRules:
+- hosts:
+  - api.ideepet.com.br
+  pathMatcher: api-backend-v2-production-path-matcher
+- hosts:
+  - biometria.ideepet.com.br
+  pathMatcher: api-biometria-v1-production-path-matcher
+- hosts:
+  - blockchain.ideepet.com.br
+  pathMatcher: api-blockchain-production-path-matcher
+id: 7577120520043200523
+kind: compute#urlMap
+name: idealpet-production
+pathMatchers:
+- defaultService: https://www.googleapis.com/compute/v1/projects/pet-hero-423816/global/backendServices/backend-api-backend-v2-production
+  name: api-backend-v2-production-path-matcher
+  pathRules:
+  - paths:
+    - /*
+    service: https://www.googleapis.com/compute/v1/projects/pet-hero-423816/global/backendServices/backend-api-backend-v2-production
+- defaultService: https://www.googleapis.com/compute/v1/projects/pet-hero-423816/global/backendServices/backend-api-biometria-v1-production
+  name: api-biometria-v1-production-path-matcher
+  pathRules:
+  - paths:
+    - /*
+    service: https://www.googleapis.com/compute/v1/projects/pet-hero-423816/global/backendServices/backend-api-biometria-v1-production
+- defaultService: https://www.googleapis.com/compute/v1/projects/pet-hero-423816/global/backendServices/backend-api-blockchain-production
+  name: api-blockchain-production-path-matcher
+  pathRules:
+  - paths:
+    - /*
+    service: https://www.googleapis.com/compute/v1/projects/pet-hero-423816/global/backendServices/backend-api-blockchain-production
+selfLink: https://www.googleapis.com/compute/v1/projects/pet-hero-423816/global/urlMaps/idealpet-production
